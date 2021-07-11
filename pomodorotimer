@@ -1,0 +1,383 @@
+#!/bin/bash
+
+##Written By : Neeveshs Monn
+##Date : 29 March 2021
+
+### Color Variables
+
+RED="\e[31;1m";
+GREEN="\e[32;1m";
+YELLOW="\e[33;1m";
+BLUE="\e[34;1m";
+CYAN="\e[36;1m";
+ENDCOLOR="\e[0m";
+
+###Timer Function
+
+function countdown(){
+   date1=$((`date +%s` + $1)); 
+   while [ "$date1" -ge `date +%s` ]; do 
+     echo -ne "$(date -u --date @$(($date1 - `date +%s`)) +%H:%M:%S)\r";
+     sleep 0.1
+   done
+}
+
+###Border Around Text Function
+
+function border () {
+  local str="$*"
+  local len=${#str}
+  local i
+  for (( i = 0; i < len + 4; ++i ));
+    do
+      printf '-'
+    done
+    printf "\n| $str |\n"
+    for (( i = 0; i < len + 4; ++i ));
+      do 
+        printf '-'
+      done
+    echo 
+}
+
+clear;
+declare sourceFile
+sourceFile=pomodoro-data.txt
+
+
+if command -v zenity >/dev/null 2>&1;
+then
+  declare absenceOfGUI
+  absenceOfGUI="n"
+else 
+  echo "zenity not found";
+  echo "Do you want to continue without GUI prompts(y/n)";
+  read absenceOfGUI;
+  if [ $absenceOfGUI = n ];
+  then
+    echo "You should install zenity for GUI prompts(OPTIONAL)";
+    exit;
+  fi
+fi
+
+clear;
+
+if command -v figlet >/dev/null 2>&1;
+then
+  declare absenceOfFiglet
+  absenceOfFiglet=n
+else 
+  echo "figlet not found";
+  echo "Do you want to continue without a Title Decorations(y/n)";
+  read absenceOfFiglet;
+  if [ $absenceOfFiglet = n ]
+  then 
+    echo "You should install Figlet if you want Decorations(OPTIONAL)";
+    exit;
+  fi
+fi
+
+clear;
+
+###Prompts
+
+if [ -f "$sourceFile" ];
+then
+  source pomodoro-data.txt
+else
+  ##Slot Duration
+
+  echo "How long would you like a slot to last?[Default=25min]";
+  read slotDuration;
+  slotDuration="${slotDuration:-25}";
+
+  while [[ ! $slotDuration =~ ^[+-]?[0-9]+$ ]];
+  do
+    echo "Format not recognized. Input should consist integers only."
+    echo "How long would you like a slot to last?[Default=25min]";
+    read slotDuration;
+  done
+
+  declare -i slotDuration;
+  slotDuration=slotDuration*60;
+
+  ##Short Break Duration
+
+  echo "How long would you like a break to last?[Default=5min]";
+  read shortBreakDuration;
+  shortBreakDuration="${shortBreakDuration:-5}";
+
+  while [[ ! $shortBreakDuration =~ ^[+-]?[0-9]+$ ]];
+  do
+    echo "Format not recognized. Input should consist integers only."
+    echo "How long would you like a slot to last?[Default=25min]";
+    read shortBreakDuration;
+  done
+
+  declare -i shortBreakDuration;
+  shortBreakDuration=shortBreakDuration*60;
+
+  ##Long Break Duration
+
+  echo "How long would you like the final break to last?[Default=15min]";
+  read finalBreakDuration;
+  finalBreakDuration="${finalBreakDuration:-15}";
+
+  while [[ ! $finalBreakDuration =~ ^[+-]?[0-9]+$ ]];
+  do
+    echo "Format not recognized. Input should consist integers only."
+    echo "How long would you like a slot to last?[Default=25min]";
+    read finalBreakDuration;
+  done
+
+  declare -i finalBreakDuration;
+  finalBreakDuration=finalBreakDuration*60;
+
+fi
+
+##Number Of Sessions Planned
+
+echo "How many sessions do you need?[Default=2]"
+read numberOfSessions;
+numberOfSessions="${numberOfSessions:-2}";
+
+###Additional Variables
+
+declare -i initialNumberOfSessions
+initialNumberOfSessions="0"
+
+declare -i additionalSessions
+additionalSessions=numberOfSessions
+
+declare -i slotDurationInMinutes
+slotDurationInMinutes=slotDuration/60
+
+declare -i accumulatedNumberOfSessions
+accumulatedNumberOfSessions=$accumulatedNumberOfSessions
+
+###Addtional Functions
+
+interval () {
+  if [ $1 = "final" ]
+  then
+    echo "Long Break";
+    countdown $finalBreakDuration;
+  else
+    echo "Short Break";
+    countdown $shortBreakDuration;
+  fi
+}
+  playsound () {
+    if ! command -v mpv &> /dev/null;
+    then
+      echo "Install mpv to play sound on popups";
+      echo "";
+    else
+      mpv /opt/pomodorotimer/assets/notification_sound.wav &> /dev/null &
+    fi;
+  }
+
+for i in $( seq 1 $numberOfSessions );
+do
+
+  clear
+
+  ###Title
+  if [ $absenceOfFiglet = y ]
+  then
+    border "Pomodoro";
+  else
+    figlet -f slant -k "Pomodoro";
+  fi
+  border "Sessions completed = $initialNumberOfSessions"
+
+  ###First Slot
+  if [ $absenceOfGUI = y ]
+  then
+    echo -e "${RED}--First Slot--${ENDCOLOR}";
+    countdown $slotDuration;
+  else 
+    playsound
+    zenity --warning --text="First Session - Stay Focused!";
+    echo -e "${RED}--First Slot--${ENDCOLOR}";
+    countdown $slotDuration; 
+    playsound
+    zenity --warning --text="$slotDurationInMinutes minutes passed. Short Break!"; 
+  fi
+
+  ###Break
+  interval short
+
+  ###Second Slot
+  if [ $absenceOfGUI = y ]
+  then
+    echo -e "${GREEN}--Second Slot--${ENDCOLOR}";
+    countdown $slotDuration;
+  else 
+  playsound
+  zenity --warning --text="2nd Slot Starts Now!";
+  echo -e "${GREEN}--Second Slot--${ENDCOLOR}";
+  countdown $slotDuration;
+  playsound
+  zenity --warning --text="$slotDurationInMinutes minutes passed. Short Break!"; 
+  fi
+
+  ###Break
+  interval short
+
+  ###Third Slot
+  if [ $absenceOfGUI = y ]
+  then
+    echo -e "${YELLOW}--Third Slot--${ENDCOLOR}";
+    countdown $slotDuration;
+  else 
+  playsound
+  zenity --warning --text="3rd Slot Starts Now!";
+  echo -e "${YELLOW}--Third Slot--${ENDCOLOR}";
+  countdown $slotDuration && playsound && zenity --warning --text="$slotDurationInMinutes minutes passed. Short Break!"; 
+  fi
+
+  ###Break
+  interval short
+
+  ###Final Slot
+  if [ $absenceOfGUI = y ]
+  then
+    echo -e "${BLUE}--Final Slot--${ENDCOLOR}";
+    countdown $slotDuration;
+  else 
+  playsound
+  zenity --warning --text="Final Slot Starts Now!"; 
+  echo -e "${BLUE}--Final Slot--${ENDCOLOR}";
+  countdown $slotDuration && playsound && zenity --warning --text="$slotDurationInMinutes minutes passed. Long Break!"; 
+  fi
+
+  ###Final Break
+  interval final
+
+  ###End of Session
+  if [ $absenceOfGUI = y ]
+  then
+    echo -e "${CYAN}---Session Ended---${ENDCOLOR}";
+  else 
+    playsound
+    zenity --warning --text="Long Break Ended - Session Completed";
+  fi
+
+  initialNumberOfSessions=initialNumberOfSessions+1
+
+done
+
+#Another Session
+echo "Would you like to start another session?";
+read loopChoice;
+
+while [ $loopChoice == 'y' ]
+  do
+    
+    clear
+
+
+    if [ $absenceOfFiglet = y ]
+    then
+      border "Pomodoro";
+    else
+      figlet -f slant -k "Pomodoro";
+    fi
+    border "Sessions completed = $additionalSessions"
+
+
+    if [ $absenceOfGUI = y ]
+    then
+      echo -e "${RED}--First Slot--${ENDCOLOR}";
+      countdown $slotDuration;
+    else 
+      zenity --warning --text="First Session - Stay Focused!";
+      echo -e "${RED}--First Slot--${ENDCOLOR}";
+      countdown $slotDuration; 
+      zenity --warning --text="$slotDurationInMinutes minutes passed. Short Break!"; 
+    fi
+
+
+    interval short
+
+
+    if [ $absenceOfGUI = y ]
+    then
+      echo -e "${GREEN}--Second Slot--${ENDCOLOR}";
+      countdown $slotDuration;
+    else 
+      zenity --warning --text="2nd Slot Starts Now!";
+      echo -e "${GREEN}--Second Slot--${ENDCOLOR}";
+      countdown $slotDuration; 
+      zenity --warning --text="$slotDurationInMinutes minutes passed. Short Break!"; 
+    fi
+
+
+    interval short
+
+
+    if [ $absenceOfGUI = y ]
+    then
+      echo -e "${YELLOW}--Third Slot--${ENDCOLOR}";
+      countdown $slotDuration;
+    else 
+      zenity --warning --text="3rd Slot Starts Now!";
+      echo -e "${YELLOW}--Third Slot--${ENDCOLOR}";
+      countdown $slotDuration; 
+      zenity --warning --text="$slotDurationInMinutes minutes passed. Short Break!"; 
+    fi
+
+
+    interval short
+
+
+    if [ $absenceOfGUI = y ]
+    then
+      echo -e "${BLUE}--Final Slot--${ENDCOLOR}";
+      countdown $slotDuration;
+    else 
+      zenity --warning --text="Final Slot Starts Now!";
+      echo -e "${BLUE}--Final Slot--${ENDCOLOR}";
+      countdown $slotDuration; 
+      zenity --warning --text="$slotDurationInMinutes minutes passed. Long Break!"; 
+    fi
+
+
+    interval final
+
+
+    if [ $absenceOfGUI = y ]
+    then
+      echo -e "${CYAN}---Session Ended---${ENDCOLOR}";
+    else 
+      zenity --warning --text="Long Break Ended - Session Completed";
+    fi
+
+
+    additionalSessions=additionalSessions+1
+
+
+    echo "Would you like to start another session?";
+    read loopChoice;
+
+  done;
+
+accumulatedNumberOfSessions=accumulatedNumberOfSessions+additionalSessions
+
+###End Page
+
+clear
+
+if [ $absenceOfFiglet = y ]
+then
+  border "Well Done"
+else
+  figlet -k "Well  Done";
+fi
+border "Sessions completed = ${CYAN}$additionalSessions${ENDCOLOR}" 
+border "Accumulated Sessions = ${CYAN}$accumulatedNumberOfSessions${ENDCOLOR}"
+
+echo -e "shortBreakDuration=$shortBreakDuration\nfinalBreakDuration=$finalBreakDuration\nslotDuration=$slotDuration\naccumulatedNumberOfSessions=$accumulatedNumberOfSessions" >pomodoro-data.txt
+
+
