@@ -8,7 +8,7 @@ OPTFOLDER="/opt/pomodorotimer"
 
 if [[ -d "$OPTFOLDER" ]]
 then
-	echo -e "${YELLOW}Warning:${ENDCOLOR} $OPTFOLDER exists. Removing..."
+	echo -e "${YELLOW}Warning: ${ENDCOLOR}$OPTFOLDER exists. Removing..."
 	sudo rm -r "$OPTFOLDER"
 fi;
 
